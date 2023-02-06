@@ -19,4 +19,4 @@ Note: Using a Custom Object "gDriveTokens__c" with two custom fields "Access_Tok
 
 Hit this link once to get the access token (change the redirect_uri with your VF page link). Once refresh token are received, it will be stored in the custom object and it is valid for 7 days:
 
-https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=YOUR_VF_PAGE_LINK_GOES_HERE&prompt=consent&response_type=code&client_id=635212851248-sjpidvddvpfe99q74sp54hp266d699e8.apps.googleusercontent.com&scope=https://www.googleapis.com/auth/drive&access_type=offline
+https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=YOUR_VF_PAGE_LINK_GOES_HERE&prompt=consent&response_type=code&client_id=YOUR_ACCOUNT_CLIENT_ID_GOES_HERE&scope=https://www.googleapis.com/auth/drive&access_type=offline
