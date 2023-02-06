@@ -7,8 +7,8 @@ global class getNewTokenForGDrive implements Schedulable {
     @future(callout=true)
     private static void makecallout() {
         String endpoint = 'https://oauth2.googleapis.com/token';
-        String clientId = '635212851248-sjpidvddvpfe99q74sp54hp266d699e8.apps.googleusercontent.com';
-        String clientSecret = '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';
+        String clientId = 'YOUR_CLIENT_ID_GOES_HERE';
+        String clientSecret = 'YOUR_CLIENT_SECRET_GOES_HERE';
         String refreshToken = [SELECT Id, Access_Token__c, Refresh_Token__c FROM gDriveTokens__c][0].Refresh_Token__c;
         String body = 'client_secret='+clientSecret+'&grant_type=refresh_token&refresh_token='+refreshToken+'&client_id='+clientId;
 
