@@ -4,12 +4,12 @@ public with sharing class connectGdrive {
     public Static Pagereference AccessToken(){
         
         String endpoint = 'https://oauth2.googleapis.com/token';
-        String clientId = '635212851248-sjpidvddvpfe99q74sp54hp266d699e8.apps.googleusercontent.com';
-        String clientSecret = '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';
-        String redirectURI = 'https://jeevantechnologies-6f-dev-ed--c.develop.vf.force.com/apex/gDrive';
+        String clientId = 'YOUR_CLIENT_ID_GOES_HERE';
+        String clientSecret = 'YOUR_CLIENT_SECRET_GOES_HERE';
+        String redirectURI = 'YOUR_VF_PAGE_LINK_GOES_HERE';
         String authCode = Apexpages.currentPage().getParameters().get('Code');
         String authHeader = 'Basic '+EncodingUtil.base64Encode(Blob.valueOf(clientId+':'+clientSecret));
-        String body = 'code='+authCode+'&client_id=635212851248-sjpidvddvpfe99q74sp54hp266d699e8.apps.googleusercontent.com&client_secret=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&scope=https://www.googleapis.com/auth/drive&grant_type=authorization_code&redirect_uri='+redirectURI;
+        String body = 'code='+authCode+'&client_id=YOUR_CLIENT_ID_GOES_HERE&client_secret=YOUR_CLIENT_SECRET_GOES_HERE&scope=https://www.googleapis.com/auth/drive&grant_type=authorization_code&redirect_uri='+redirectURI;
 
         Http http = new Http();
         HttpRequest req = new HttpRequest();
