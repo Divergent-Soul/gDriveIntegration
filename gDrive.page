@@ -1,0 +1,30 @@
+<apex:page controller="connectGdrive">
+    <script>
+        let code='{!$CurrentPage.parameters.code}';
+            window.onload=function(){
+            if(code){
+                AccessTok();
+                window.open("about:blank","_self");
+            }
+        }
+        var callback = function () {
+             if (result.error) {
+		        alert("Error message is " + result.error);
+             }
+         };
+        function testCloseTab() {
+            //First find the ID of the current tab to close it
+            sforce.console.getEnclosingTabId(closeSubtab);
+         }
+
+        var closeSubtab = function closeSubtab(result) {
+            //Now that we have the tab ID, we can close it
+            var tabId = result.id;
+            sforce.console.closeTab(tabId, callback);
+        };
+
+    </script>
+    <apex:form >
+        <apex:actionFunction name="AccessTok" action="{!AccessToken}" reRender="none"/>
+    </apex:form>
+</apex:page>
