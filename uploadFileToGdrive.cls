@@ -17,14 +17,24 @@ public with sharing class uploadFileToGdrive {
                 }
             }
             // Next, query the linked object to get its type
-            SObject linkedObject = Database.query('SELECT Id, Name FROM ' + linkedEntityId.getSObjectType() + ' WHERE Id = \'' + linkedEntityId + '\'');
+            SObject linkedObject = Database.query('SELECT Id FROM ' + linkedEntityId.getSObjectType() + ' WHERE Id = \'' + linkedEntityId + '\'');
             if (linkedObject == null) {
                 System.debug('Linked object not found for Id: ' + linkedEntityId);
                 return;
             }
             // Finally, get the object name from the linked object's SObjectType
             String objectNameForFolder = linkedObject.getSObjectType().getDescribe().getLabel();
-            uploadFileToGdrive.uploadFileCallout(MIMEHelper.getMIMEType(contentVersion.FileType), contentVersion.VersionData, contentVersion.ContentDocument.Title, objectNameForFolder, linkedEntityId);
+            system.debug(objectNameForFolder);
+            String recordIdentifier;
+            if (objectNameForFolder == 'Case') {
+                List<Case> temp = [SELECT Id, Subject FROM Case WHERE Id=:linkedEntityId];
+                recordIdentifier = temp[0].Subject+' - '+temp[0].Id;
+            }
+            else {
+                List<sObject> temp = Database.query('SELECT Id, Name FROM '+objectNameForFolder+' Where Id = \''+linkedEntityId+'\'');
+                recordIdentifier = temp[0].get('Name')+' - '+temp[0].Id;
+            }
+            uploadFileToGdrive.uploadFileCallout(MIMEHelper.getMIMEType(contentVersion.FileType), contentVersion.VersionData, contentVersion.ContentDocument.Title, objectNameForFolder, recordIdentifier);
         }
     }
 
