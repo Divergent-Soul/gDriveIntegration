@@ -24,13 +24,13 @@ public with sharing class uploadFileToGdrive {
             }
             // Finally, get the object name from the linked object's SObjectType
             String objectNameForFolder = linkedObject.getSObjectType().getDescribe().getLabel();
-            uploadFileToGdrive.uploadFileCallout(MIMEHelper.getMIMEType(contentVersion.FileType), contentVersion.VersionData, contentVersion.ContentDocument.Title, objectNameForFolder);
+            uploadFileToGdrive.uploadFileCallout(MIMEHelper.getMIMEType(contentVersion.FileType), contentVersion.VersionData, contentVersion.ContentDocument.Title, objectNameForFolder, linkedEntityId);
         }
     }
 
     @future(callout=true)
-    public static void uploadFileCallout(String contentType, Blob fileData, String fileName, String objectNameForFolder) {
-        String fileId, folderId;
+    public static void uploadFileCallout(String contentType, Blob fileData, String fileName, String objectNameForFolder, String RecordId) {
+        String fileId, objectFolderId, recordFolderId;
         //Find folder - If found it'll return the folder Id & If not it'll return no folder found
         HttpRequest searchFolderRequest = new HttpRequest();
         searchFolderRequest.setMethod('GET');
@@ -46,7 +46,62 @@ public with sharing class uploadFileToGdrive {
             List<Object> files = (List<Object>) response.get('files');
             if (!files.isEmpty()) {
                 Map<String, Object> folder = (Map<String, Object>) files.get(0);
-                folderId = (String)folder.get('id');
+                objectFolderId = (String)folder.get('id');
+                HttpRequest searchRecordFolderRequest = new HttpRequest();
+                searchRecordFolderRequest.setMethod('GET');
+                searchRecordFolderRequest.setEndpoint('https://www.googleapis.com/drive/v3/files');
+                searchRecordFolderRequest.setHeader('Authorization', 'Bearer ' + [SELECT Access_Token__c FROM gDriveTokens__c LIMIT 1][0].Access_Token__c);
+                String query1 = 'q=' + EncodingUtil.urlEncode('mimeType=\'application/vnd.google-apps.folder\' and trashed = false and name=\''+RecordId+'\'', 'UTF-8') + 
+                            '&fields=' + EncodingUtil.urlEncode('nextPageToken, files(id, name)', 'UTF-8');
+                searchRecordFolderRequest.setEndpoint(searchRecordFolderRequest.getEndpoint() + '?' + query1);
+                Http searchRecordFolderHTTP = new Http();
+                HttpResponse searchRecordFolderResponse = searchRecordFolderHTTP.send(searchRecordFolderRequest);
+                if (searchRecordFolderResponse.getStatusCode() == 200) {
+                    Map<String, Object> response1 = (Map<String, Object>) JSON.deserializeUntyped(searchRecordFolderResponse.getBody());
+                    List<Object> files1 = (List<Object>) response1.get('files');
+                    if (!files1.isEmpty()) {
+                        Map<String, Object> folder1 = (Map<String, Object>) files1.get(0);
+                        recordFolderId = (String)folder1.get('id');
+                    } 
+                    else {
+                        //create folder in Google Drive
+                        Http createRecordFolderHTTP = new Http();
+                        HttpRequest createRecordFolderReq = new HttpRequest();
+                        createRecordFolderReq.setMethod('POST');
+                        createRecordFolderReq.setEndpoint('https://www.googleapis.com/drive/v3/files');
+                        createRecordFolderReq.setHeader('Authorization', 'Bearer ' + [SELECT Access_Token__c FROM gDriveTokens__c LIMIT 1][0].Access_Token__c);
+                        createRecordFolderReq.setHeader('Content-Type', 'application/json');
+                        createRecordFolderReq.setHeader('Accept', 'application/json');
+                        createRecordFolderReq.setBody('{"name":"'+RecordId+'","mimeType":"application/vnd.google-apps.folder"}');
+                        HttpResponse createRecordFolderRes = createRecordFolderHTTP.send(createRecordFolderReq);
+                        if (createRecordFolderRes.getStatusCode() == 200) {
+                            Map<String, Object> responseJson1 = (Map<String, Object>) JSON.deserializeUntyped(createRecordFolderRes.getBody());
+                            recordFolderId = (String) responseJson1.get('id');
+                            //Move uploaded file to the found folder.
+                            Http moveFileHTTP = new Http();
+                            HttpRequest moveFileReq = new HttpRequest();
+                            moveFileReq.setMethod('POST');
+                            moveFileReq.setEndpoint('https://www.googleapis.com/drive/v2/files/'+recordFolderId+'/parents');
+                            moveFileReq.setHeader('Authorization', 'Bearer ' + [SELECT Access_Token__c FROM gDriveTokens__c LIMIT 1][0].Access_Token__c);
+                            moveFileReq.setHeader('Content-Type', 'application/json');
+                            moveFileReq.setHeader('Accept', 'application/json');
+                            moveFileReq.setBody('{"id":"'+objectFolderId+'"}');
+                            HttpResponse moveFileRes = moveFileHTTP.send(moveFileReq);
+                            if (moveFileRes.getStatusCode() == 200) {
+                                System.debug('File moved successfully');
+                            }
+                            else {
+                                System.debug('Error moving file: ' + moveFileRes.getStatusCode() + ' ' + moveFileRes.getStatus());
+                            }
+                        }
+                        else {
+                            System.debug('Error moving file: ' + createRecordFolderRes.getStatusCode() + ' ' + createRecordFolderRes.getStatus());
+                        }
+                    }
+                }
+                else {
+                    System.debug('Request failed with status code ' + searchRecordFolderResponse.getStatusCode());
+                }
             } 
             else {
                 //create folder in Google Drive
@@ -61,7 +116,40 @@ public with sharing class uploadFileToGdrive {
                 HttpResponse createFolderRes = createFolderHTTP.send(createFolderReq);
                 if (createFolderRes.getStatusCode() == 200) {
                     Map<String, Object> responseJson = (Map<String, Object>) JSON.deserializeUntyped(createFolderRes.getBody());
-                    folderId = (String) responseJson.get('id');
+                    objectFolderId = (String) responseJson.get('id');
+                    //create folder in Google Drive
+                    Http createRecordFolderHTTP = new Http();
+                    HttpRequest createRecordFolderReq = new HttpRequest();
+                    createRecordFolderReq.setMethod('POST');
+                    createRecordFolderReq.setEndpoint('https://www.googleapis.com/drive/v3/files');
+                    createRecordFolderReq.setHeader('Authorization', 'Bearer ' + [SELECT Access_Token__c FROM gDriveTokens__c LIMIT 1][0].Access_Token__c);
+                    createRecordFolderReq.setHeader('Content-Type', 'application/json');
+                    createRecordFolderReq.setHeader('Accept', 'application/json');
+                    createRecordFolderReq.setBody('{"name":"'+RecordId+'","mimeType":"application/vnd.google-apps.folder"}');
+                    HttpResponse createRecordFolderRes = createRecordFolderHTTP.send(createRecordFolderReq);
+                    if (createRecordFolderRes.getStatusCode() == 200) {
+                        Map<String, Object> responseJson1 = (Map<String, Object>) JSON.deserializeUntyped(createRecordFolderRes.getBody());
+                        recordFolderId = (String) responseJson1.get('id');
+                        //Move uploaded file to the found folder.
+                        Http moveFileHTTP = new Http();
+                        HttpRequest moveFileReq = new HttpRequest();
+                        moveFileReq.setMethod('POST');
+                        moveFileReq.setEndpoint('https://www.googleapis.com/drive/v2/files/'+recordFolderId+'/parents');
+                        moveFileReq.setHeader('Authorization', 'Bearer ' + [SELECT Access_Token__c FROM gDriveTokens__c LIMIT 1][0].Access_Token__c);
+                        moveFileReq.setHeader('Content-Type', 'application/json');
+                        moveFileReq.setHeader('Accept', 'application/json');
+                        moveFileReq.setBody('{"id":"'+objectFolderId+'"}');
+                        HttpResponse moveFileRes = moveFileHTTP.send(moveFileReq);
+                        if (moveFileRes.getStatusCode() == 200) {
+                            System.debug('File moved successfully');
+                        }
+                        else {
+                            System.debug('Error moving file: ' + moveFileRes.getStatusCode() + ' ' + moveFileRes.getStatus());
+                        }
+                    }
+                    else {
+                        System.debug('Error moving file: ' + createRecordFolderRes.getStatusCode() + ' ' + createRecordFolderRes.getStatus());
+                    }
                 }
                 else {
                     System.debug('Error moving file: ' + createFolderRes.getStatusCode() + ' ' + createFolderRes.getStatus());
@@ -102,7 +190,7 @@ public with sharing class uploadFileToGdrive {
                 moveFileReq.setHeader('Authorization', 'Bearer ' + [SELECT Access_Token__c FROM gDriveTokens__c LIMIT 1][0].Access_Token__c);
                 moveFileReq.setHeader('Content-Type', 'application/json');
                 moveFileReq.setHeader('Accept', 'application/json');
-                moveFileReq.setBody('{"id":"'+folderId+'"}');
+                moveFileReq.setBody('{"id":"'+recordFolderId+'"}');
                 HttpResponse moveFileRes = moveFileHTTP.send(moveFileReq);
                 if (moveFileRes.getStatusCode() == 200) {
                     System.debug('File moved successfully');
